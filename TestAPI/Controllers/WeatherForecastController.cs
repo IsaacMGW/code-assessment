@@ -1,41 +1,102 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using TestAPI.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TestAPI.Controllers;
 using TestAPI.Services;
+using FluentAssertions;
+using System.Threading;
+using NUnit.Framework;
+using TestAPI.Models;
+using System.Linq;
+using System;
+using Moq;
 
-namespace TestAPI.Controllers
+namespace TestApiUnitTests.ControllerTests
 {
-  [ApiController]
-  [Route("[controller]")]
-  public class WeatherForecastController : ControllerBase
-  {
-    private readonly ILogger<WeatherForecastController> _logger;
-    private readonly IWeatherForecastService _weatherForecastService;
-
-    public WeatherForecastController(ILogger<WeatherForecastController> logger, IWeatherForecastService weatherForecastService)
+    [TestFixture]
+    public class WeatherForecastControllerTests
     {
-      _logger = logger;
-      _weatherForecastService = weatherForecastService;
-    }
+        private WeatherForecastController _weatherForecastController;
+        CancellationToken mockCancellationToken = default;
+        int mockDays = 5;
 
-    [HttpGet]
-    [Authorize]
-    public async Task<IEnumerable<WeatherForecast>> GetAsync(int days = 5, CancellationToken token = default)
-    {
-      using var loggingScope = _logger.BeginScope($"{nameof(WeatherForecastController)}.{nameof(GetAsync)}");
-      return await _weatherForecastService.GetAsync(days, token).ToListAsync(token);
-    }
+        [SetUp]
+        public void Setup()
+        {
+            var mockDisposable = new Mock<IDisposable>();
+            var mockLogger = new Mock<ILogger<WeatherForecastController>>();
+            mockLogger.Setup(x => x.BeginScope($"{nameof(WeatherForecastController)}.{nameof(WeatherForecastController.GetAsync)}")).Returns(mockDisposable.Object);
 
-    [HttpGet("unauthenticated")]
-    public async Task<IEnumerable<WeatherForecast>> GetUnauthenticatedAsync(int days = 5, CancellationToken token = default)
-    {
-      using var loggingScope = _logger.BeginScope($"{nameof(WeatherForecastController)}.{nameof(GetUnauthenticatedAsync)}");
-      return await _weatherForecastService.GetAsync(days, token).ToListAsync(token);
+            var mockWeatherForecastService = new Mock<IWeatherForecastService>();
+            mockWeatherForecastService.Setup(x => x.GetAsync(mockDays, mockCancellationToken)).Returns(GetTestValues());
+
+            _weatherForecastController = new WeatherForecastController(mockLogger.Object, mockWeatherForecastService.Object);
+        }
+
+        /// <summary>
+        /// This tests if the controller is returning the correct forecasts/formatting.
+        /// </summary>
+        /// <returns></returns>
+        [Test]
+        public async Task ItShouldReturnAListOfForecasts()
+        {
+            var actual = await _weatherForecastController.GetAsync(mockDays, mockCancellationToken);
+            var expected = await GetTestValues().ToListAsync(mockCancellationToken);
+
+            actual.Should().BeEquivalentTo(expected);
+        }
+
+        /// <summary>
+        /// This tests if the controller is returning the correct forecasts/formatting.
+        /// </summary>
+        /// <returns></returns>
+        [Test]
+        public async Task ItShouldReturnAListOfForecastsUnauthenticated()
+        {
+            var actual = await _weatherForecastController.GetUnauthenticatedAsync(mockDays, mockCancellationToken);
+            var expected = await GetTestValues().ToListAsync(mockCancellationToken);
+
+            actual.Should().BeEquivalentTo(expected);
+        }
+
+        /// <summary>
+        /// Creates the test WeatherForecast list.
+        /// </summary>
+        /// <returns></returns>
+        public static async IAsyncEnumerable<WeatherForecast> GetTestValues()
+        {
+            yield return new WeatherForecast
+            {
+                Date = DateTime.Parse("2023-01-05T00:00:00"),
+                Summary = "Scorching",
+                TemperatureC = 40
+            };
+            yield return new WeatherForecast
+            {
+                Date = DateTime.Parse("2023-01-06T00:00:00"),
+                Summary = "Sweltering",
+                TemperatureC = 36
+            };
+            yield return new WeatherForecast
+            {
+                Date = DateTime.Parse("2023-01-07T00:00:00"),
+                Summary = "Scorching",
+                TemperatureC = 51
+            };
+            yield return new WeatherForecast
+            {
+                Date = DateTime.Parse("2023-01-08T00:00:00"),
+                Summary = "Cool",
+                TemperatureC = 10
+            };
+            yield return new WeatherForecast
+            {
+                Date = DateTime.Parse("2023-01-09T00:00:00"),
+                Summary = "Chilly",
+                TemperatureC = 7
+            };
+
+            await Task.CompletedTask;
+        }
     }
-  }
 }
