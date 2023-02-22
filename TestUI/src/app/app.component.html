@@ -1,14 +1,47 @@
-<div class="container">
-  <div class="row">
-    <div class="col-6 offset-3" *ngFor="let weather of weatherData">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">{{weather.date}}</h5>
-          <h6 class="card-subtitle mb-2 text-muted">{{weather.temperatureF}} &#176;F </h6>
-          <h6 class="card-subtitle mb-2 text-muted">{{weather.temperatureC}} &#176;C</h6>
-          <p class="card-text">{{weather.summary}}</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+import {Component} from '@angular/core';
+import {Client, WeatherForecast} from "./weatherapp.swagger";
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss'],
+  providers: [Client]
+})
+export class AppComponent {
+  title: string = "TestUI";
+  weatherData: WeatherForecast[] = [];
+
+  constructor(
+    
+    public client: Client
+  ) {
+    this.getWeather();
+  }
+
+  /**
+   * Get Current Weather
+   *
+   * @description Gets current weather from API
+   */
+  getWeather() {
+    this.client.unauthenticated().subscribe({
+      complete: () => {},
+      error: (error) => {
+        this.handleError(error);
+      },
+      next: (data: WeatherForecast[]) => {
+        this.weatherData = data;
+      }
+    })
+  }
+
+  /**
+   * Dummy Error Handler
+   *
+   * @description throws error state
+   * @param error
+   */
+  handleError(error: string) {
+    alert(error);
+  }
+}
